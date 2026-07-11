@@ -23,7 +23,7 @@ def build_model(input_dim: int) -> keras.Model:
     model_cfg = CONFIG.model
 
     model = keras.Sequential(name="volatility_predictor")
-    model.add(keras.Input(shape=(input_dim)))
+    model.add(keras.Input(shape=(input_dim,)))
 
     for units in model_cfg.hidden_layer_sizes:
         model.add(layers.Dense(units, activation=model_cfg.activation))

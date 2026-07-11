@@ -29,7 +29,7 @@ def standardize_columns(df: pd.DataFrame) -> pd.DataFrame:
         return df
     
     if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.get_level_values(0)
+        df.columns = df.columns.get_level_values(0)
 
     df = df.rename(columns={
         'Open': 'open',
@@ -62,7 +62,7 @@ def fetch_ohclv(ticker: str, start_date, end_date) -> pd.DataFrame:
 
 
 
-def fetch_ohclv_with_buffer(ticker: str, window_start, window_end, buffer_trading_days: int) -> pd.DataFrame:
+def fetch_ohclv_with_buffer(ticker: str, window_start, window_end, buffer_trading_days: int = None) -> pd.DataFrame:
     """
     Fetches OHCLV data for a given ticker from yfinance, over the specified range PLUS extra data from before window_start for rolling indicators
     to be calculated.
@@ -74,7 +74,7 @@ def fetch_ohclv_with_buffer(ticker: str, window_start, window_end, buffer_tradin
     """
 
     if buffer_trading_days is None:
-        buffer_trading_days = CONFIG.data.warmup_buffer_days
+        buffer_trading_days = CONFIG.indicators.warmup_buffer_days
 
 
     # Calculate the number of calendar days before window_start to fetch based on the trading days and the ratio
@@ -109,7 +109,7 @@ def fetch_multi_ticker(tickers: list[str], start_date, end_date) -> dict:
 
             data_dict[ticker] = df
         except Exception as e:
-            print(f"Failed to fetch ticker: {ticker}")
+            print(f"Failed to fetch ticker: {ticker} ({e})")
 
     return data_dict
 
