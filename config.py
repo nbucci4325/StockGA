@@ -92,6 +92,7 @@ class ModelConfig:
     batch_size: int = 32
     early_stopping_patience: int = 15
     save_path: str = "model/saved/volatility_predictor.keras"
+    scaler_save_path: str = "model/saved/feature_scaler.pkl"
 
 
 

@@ -10,6 +10,7 @@ from tensorflow import keras
 from tensorflow.keras import layers
 from config import CONFIG
 import os
+import joblib
 
 
 def build_model(input_dim: int) -> keras.Model:
@@ -58,3 +59,17 @@ def load_model(path: str = None) -> keras.Model:
         path = CONFIG.model.save_path
 
     return keras.models.load_model(path)
+
+def save_scaler(scaler, path: str = None) -> None:
+    """Saves a fitted sklearn StandardScaler to disk..."""
+
+    save_path = path or CONFIG.model.scaler_save_path
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    joblib.dump(scaler, save_path)
+
+
+def load_scaler(path: str = None):
+    """Loads a previously fitted StandardScaler from disk..."""
+
+    load_path = path or CONFIG.model.scaler_save_path
+    return joblib.load(load_path)
