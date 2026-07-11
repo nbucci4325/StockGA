@@ -85,7 +85,7 @@ def build_feature_matrix(df: pd.DataFrame) -> pd.DataFrame:
 def build_training_dataset(tickers: list[str], start_date, end_date) -> tuple:
     """
     This builds the full (X, y) training dataset for the NN, across multiple clickers. It fetcher OHCLV data, computes indicators,
-    computes forward volatility labels, and buiulds the feature matrix.
+    computes forward volatility labels, and builds the feature matrix.
 
     Returns (X, y) where X is the feature matrix and y is the forward volatility labels.
     """
