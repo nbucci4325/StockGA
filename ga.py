@@ -27,7 +27,7 @@ save_result_to_csv / save_history_to_csv):
 import csv
 import os
 import random
-from datetime import date
+from datetime import date, timedelta
 
 import numpy as np
 import pandas as pd
@@ -288,47 +288,171 @@ def run_ga_for_stock(ticker: str, as_of: date = None, seed: int = 42) -> dict:
     }
 
 
+def get_trading_decision(
+    ticker: str,
+    chrom: Chromosome,
+    as_of: date = None,
+    in_position: bool = False,
+    entry_price: float = None,
+) -> dict:
+    """
+    Applies an already-evolved chromosome to the MOST RECENT available
+    data for `ticker` and returns an actual BUY / SELL / HOLD decision --
+    unlike evaluate_chromosome(), which only scores backtest performance
+    over a historical window and never looks at "today."
+ 
+    NOTE: this reflects what the chromosome's rules say to do given its
+    (in-sample) evolved parameters -- it is not a validated prediction.
+    A high fitness in results.csv does not guarantee this decision will
+    be profitable going forward
+ 
+    Args:
+        in_position/entry_price: since this script doesn't persist
+            portfolio state between runs, the caller must say whether
+            they're currently holding a position and at what price, so
+            stop_loss_pct/take_profit_pct can be evaluated correctly.
+            Defaults to flat (no position).
+    """
+    end_date = as_of or date.today()
+ 
+    longest_lookback = max(
+        chrom["sma_long_window"],
+        chrom["bbands_window"],
+        chrom["rsi_period"],
+        chrom["macd_slow_period"],
+    )
+    buffered_df = fetch_ohclv_with_buffer(
+        ticker, end_date, end_date + timedelta(days=1), buffer_trading_days=int(longest_lookback) + 20
+    )
+ 
+    ind_df = _chromosome_indicators(chrom, buffered_df).dropna()
+    if ind_df.empty:
+        raise ValueError(
+            f"Not enough recent data to compute indicators for {ticker} as of {end_date}."
+        )
+ 
+    signal = float(_combined_signal(chrom, ind_df).iloc[-1])
+    price = float(ind_df["close"].iloc[-1])
+    latest_date = ind_df.index[-1]
+ 
+    sl_pct, tp_pct = chrom["stop_loss_pct"], chrom["take_profit_pct"]
+ 
+    if in_position:
+        if entry_price is None:
+            raise ValueError("in_position=True requires entry_price.")
+        hit_stop = price <= entry_price * (1 - sl_pct)
+        hit_target = price >= entry_price * (1 + tp_pct)
+        signal_exit = signal < -SIGNAL_THRESHOLD
+ 
+        if hit_stop:
+            action, reason = "SELL", "stop-loss hit"
+        elif hit_target:
+            action, reason = "SELL", "take-profit hit"
+        elif signal_exit:
+            action, reason = "SELL", "signal reversed below exit threshold"
+        else:
+            action, reason = "HOLD", "no exit condition met"
+    else:
+        if signal > SIGNAL_THRESHOLD:
+            action, reason = "BUY", "signal above entry threshold"
+        else:
+            action, reason = "HOLD", "signal below entry threshold, staying flat"
+ 
+    return {
+        "ticker": ticker,
+        "date": latest_date,
+        "price": price,
+        "combined_signal": signal,
+        "action": action,
+        "reason": reason,
+    }
+ 
+ 
+def save_decision_to_csv(decision: dict, path: str = "decisions.csv") -> None:
+    """Appends one row per decision made, for a running log of what the
+    strategy said to do and when."""
+    fieldnames = ["ticker", "date", "price", "combined_signal", "action", "reason"]
+    file_exists = os.path.isfile(path)
+ 
+    with open(path, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(decision)
+ 
+    print(f"[ga] Logged decision for {decision['ticker']} to {path}")
+
+
 def save_result_to_csv(result: dict, path: str = RESULTS_CSV_PATH) -> None:
+    """
+    Appends one row for this run to the results CSV: ticker,
+    crossover_rate_used, best_fitness, and every gene of the best
+    chromosome. Writes the header only if the file doesn't exist yet, so
+    repeated calls (e.g. one per ticker) build up a single comparison
+    table.
+    """
     fieldnames = ["ticker", "crossover_rate_used", "best_fitness", *_GENE_NAMES]
     file_exists = os.path.isfile(path)
-
+ 
     row = {
         "ticker": result["ticker"],
         "crossover_rate_used": result["crossover_rate_used"],
         "best_fitness": result["best_fitness"],
         **result["best_chromosome"],
     }
-
+ 
     with open(path, "a", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         if not file_exists:
             writer.writeheader()
         writer.writerow(row)
-
+ 
     print(f"[ga] Appended result for {result['ticker']} to {path}")
-
-
+ 
+ 
 def save_history_to_csv(result: dict, directory: str = HISTORY_CSV_DIR) -> str:
+    """
+    Writes this run's per-generation best fitness to its own CSV
+    (history_<ticker>.csv), for convergence plotting. Overwrites any
+    prior history file for the same ticker.
+    """
     path = os.path.join(directory, f"history_{result['ticker']}.csv")
-
+ 
     with open(path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["generation", "best_fitness"])
         for gen, fitness in enumerate(result["fitness_history"]):
             writer.writerow([gen, fitness])
-
+ 
     print(f"[ga] Wrote fitness history for {result['ticker']} to {path}")
     return path
-
-
+ 
+ 
 if __name__ == "__main__":
     import sys
-
+ 
     ticker_arg = sys.argv[1] if len(sys.argv) > 1 else "AAPL"
+    # Optional: python ga.py TICKER ENTRY_PRICE  -- if you're currently
+    # holding a position, pass your entry price so stop-loss/take-profit
+    # are evaluated correctly. Omit it to evaluate as flat (no position).
+    entry_price_arg = float(sys.argv[2]) if len(sys.argv) > 2 else None
+    in_position_arg = entry_price_arg is not None
+ 
     result = run_ga_for_stock(ticker_arg)
-
+ 
     print(f"\n[ga] Done. Best total return for {result['ticker']}: "
           f"{result['best_fitness']:.2%}")
-
+ 
     save_result_to_csv(result)
     save_history_to_csv(result)
+ 
+    decision = get_trading_decision(
+        ticker_arg,
+        result["best_chromosome"],
+        in_position=in_position_arg,
+        entry_price=entry_price_arg,
+    )
+    print(f"\n[ga] Trading decision for {ticker_arg} as of {decision['date']}: "
+          f"{decision['action']} ({decision['reason']})")
+    print(f"     signal={decision['combined_signal']:.3f}  price={decision['price']:.2f}")
+    save_decision_to_csv(decision)
