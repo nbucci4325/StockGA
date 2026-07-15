@@ -1,9 +1,5 @@
 # Stocks GA — NN Training and Prediction Done Before the GA
 
-This covers everything built **before** the GA: data fetching, indicator/feature
-engineering, NN training, and per-stock inference. GA itslef hasn't been touched, and you'll pick up
-from where I left off.
-
 ## Key changes from our original idea:
 
 The original idea was for the NN to directly predict the "optimal crossover
@@ -121,4 +117,53 @@ GA-level parameter that's supposed to vary by stock.
   mutation rate, etc.). Crossover rate is deliberately *not* a static field
   here since it's produced per-stock by `run_experiment.py`, not fixed.
 
-Fitness function is not yet defined, I'll leave that up to you for how to determine that for a chromosome since you'll be designing the GA.
+## GA Component
+Evolves per-stock trading strategy parameters using the crossover rate predicted by the NN pipeline, then backtests the result and produces a live trading decision.
+
+Chromosone:
+14 genes (defined in CONFIG.chromosone, config.py): SMA short/long windows, RSI period + oversold/overbought thresholds, MACD fast/slow/signal periods, Bollinger window + num_std, stop-loss %, take-profit %, position-size %, and signal_combination_weight. Three relational constraints are enforced (e.g. sma_short_window < sma_long_window) via a repair step after crossover/mutation -- genes are rounded to the nearest valid value and clamped to their own bounds rather than swapped outright (that would violate other genes' ranges).
+
+Fitness Function:
+For each chromosone, indicators are recomputed at _that_ chromosones own evolved periods onthe stock's OHLCV window. These four signals are computed daily, each normalized to [-1 , 1]:
+| Signal | Formula |
+|---|---|
+| sma_signal | clip((sma_short - sma_long) / sma_long / 0.05, -1, 1) |
+| macd_signal | clip(macd_hist / close / 0.05, -1, 1) |
+| rsi_signal | linear map of RSI onto [-1 , 1] using the chromosone's own oversold/overbought (oversold -> +1, overbought -> -1) |
+| bb_signal | linear map of %B onto [-1 , 1] using the chromosone's own bands (lower band -> +1, upper band -> -1) |
+
+These blend into one combined signal via the chromosone's signal_combination_weight (w). This controls whether the evolved strategy leans trend-following (w -> 1) or reverting (w -> 0).
+
+Backtest rules: long-only, one position at a time. Enter when combined > 0.3; exit when combined < -0.3, or when price hits the chromosone's stop_loss_pct / take_profit_pct from entry (whichever comes first overrides the signal). position_size_pct of current cash is deployed on each entry, starting from $100,000. 
+
+Fitness = total/cumulative return over the backtest window (final equity / initial - 1)
+
+NOTE: Fitness is scored in-sample against what its optimized on. Treat a high fitness as "fit this historical window well", NOT a guarantee of future performance. 
+
+GA Operators:
+
+Selection: torunament (k = 3, from CONFIG.ga.tournament_k)
+Crossover (uniform (each gene independently from parent A or B), gated by the NN-predicted crossover_rate (unfix, per-stock)
+Mutation: random-reset per gene at CONFIG.ga.mutation_rate
+Elitism: top CONFIG.ga.elisism carried over unchanged each generation
+Population/generations: CONFIG.ga.population_size (100) x CONFIG.ga.max)gen (300)
+
+### HOW TO RUN
+
+```python
+python ga.py APPL
+
+# OPTIONAL second arg: your entry price, if you're already holding a position
+# (needed so stop-loss/take-profit evaluate against the real entry, not flat)
+python ga.py APPL 187.50
+
+# APPL is simply a placeholder for showcasing purposes
+```
+
+Rach ga.py run for a ticker produces/appends to:
+
+| File | Contents |
+|---|---|
+| results.csv | Pne row per run: tocker, crossover rate used, best fitness, and all 14 best-chromosone gene values. Appended, so multiple tickers build one comparison table. |
+| history_<TICKER>.csv | Best fitness per generation, for convergence plots. Overwritten per run. |
+| decisions.csv | One row per run: date, price, combined signal, and the resulting BUY/SELL/HOLD decision with reason. Appended. |
