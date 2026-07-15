@@ -28,7 +28,6 @@ model/saved/
 # --- Data caches / downloaded data ---
 data/cache/
 data/raw/
-*.csv
 *.parquet
 
 # --- Environment / secrets ---

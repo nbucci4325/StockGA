@@ -1,0 +1,7 @@
+ticker,date,price,combined_signal,action,reason
+AAPL,2026-07-13 00:00:00,317.30999755859375,-0.150211169177587,HOLD,"signal below entry threshold, staying flat"
+NVDA,2026-07-14 00:00:00,211.8000030517578,-0.3738837343642467,HOLD,"signal below entry threshold, staying flat"
+GOOG,2026-07-14 00:00:00,357.3299865722656,0.4342961950060655,BUY,signal above entry threshold
+MSFT,2026-07-14 00:00:00,384.92999267578125,-0.13434801565171975,HOLD,"signal below entry threshold, staying flat"
+AMZN,2026-07-14 00:00:00,247.49000549316406,0.14679824624453564,HOLD,"signal below entry threshold, staying flat"
+META,2026-07-14 00:00:00,661.0399780273438,-0.316871757166241,HOLD,"signal below entry threshold, staying flat"
