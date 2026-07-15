@@ -160,10 +160,10 @@ python ga.py APPL 187.50
 # APPL is simply a placeholder for showcasing purposes
 ```
 
-Rach ga.py run for a ticker produces/appends to:
+Each ga.py run for a ticker produces/appends to:
 
 | File | Contents |
 |---|---|
-| results.csv | Pne row per run: tocker, crossover rate used, best fitness, and all 14 best-chromosone gene values. Appended, so multiple tickers build one comparison table. |
+| results.csv | One row per run: ticker, crossover rate used, best fitness, and all 14 best-chromosone gene values. Appended, so multiple tickers build one comparison table. |
 | history_<TICKER>.csv | Best fitness per generation, for convergence plots. Overwritten per run. |
 | decisions.csv | One row per run: date, price, combined signal, and the resulting BUY/SELL/HOLD decision with reason. Appended. |
