@@ -4,6 +4,18 @@
 - Subquat Siddiqui -- le22rd@brocku.ca
 - Nico Buccilli -- ds23xq@brocku.ca
 
+## Project Overview
+
+This project evolves individual stock trading strategies using a Genetic
+Algorithm (GA), guided by a Neural Network (NN) trained across a broad
+universe of stocks. For a given ticker, the NN predicts that stock's forward
+realized volatility, which is then mapped to a stock-specific crossover rate
+used by the GA. Each GA run evolves a population of 14-gene chromosomes
+(technical-indicator periods, signal thresholds, and risk-management
+parameters) against a backtested-return fitness function, ultimately
+producing a best-fit trading strategy and a live BUY/SELL/HOLD decision for
+that stock.
+
 ## Key changes from our original idea:
 
 The original idea was for the NN to directly predict the "optimal crossover
@@ -50,13 +62,16 @@ Other adjustments made along the way:
 
 ## What to run
 
-## Necessary Libraries:
+### Necessary Libraries:
 - yfinance
 - pandas
 - numpy
 - scikit-learn
 - joblib
 - tensorflow
+
+### Python Version
+This project was run on Python 3.12.
 
 ### 1. `train_nn.py` — run once (offline, before any experiments)
 
