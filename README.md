@@ -1,5 +1,9 @@
 # Stocks GA — NN Training and Prediction Done Before the GA
 
+##Authors
+Subquat Siddiqui -- le22rd@brocku.ca
+Nico Buccilli -- ds23xq@brocku.ca
+
 ## Key changes from our original idea:
 
 The original idea was for the NN to directly predict the "optimal crossover
