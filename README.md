@@ -1,8 +1,8 @@
 # Stocks GA — NN Training and Prediction Done Before the GA
 
 ## Authors
-- Subquat Siddiqui -- le22rd@brocku.ca
-- Nico Buccilli -- ds23xq@brocku.ca
+- [Subquat Siddiqui](https://github.com/Subquat-Siddiqui)
+- [Nico Buccilli](https://github.com/nbucci4325)
 
 ## Project Overview
 
